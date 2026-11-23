@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<!--
+================================================================================
+ Radar Iklan Lelah — AI Mini App (satu file HTML, login pembeli + ai-proxy)
+
+ CATATAN SEBELUM JUAL — WAJIB DIBACA PENJUAL:
+
+ 1. TIDAK ADA API KEY DI FILE INI. Panggilan AI lewat ai-proxy (Supabase Edge
+    Function). Key OpenRouter disimpan di server, bukan di HTML.
+ 2. LOGIN PEMBELI. Pembeli masuk pakai email pembelian (magic link). Email yang
+    belum terdaftar sebagai member tidak bisa masuk (shouldCreateUser:false).
+ 3. ISI CONFIG DI BAWAH saat pasang gerbang bayar: SUPABASE_URL,
+    SUPABASE_ANON_KEY, BUY_URL, SUPPORT_WA.
+ 4. TES DULU. Setelah gerbang terpasang, login pakai email tes, isi form dengan
+    data asli, pastikan report keluar utuh. Coba dua data yang beda — hasilnya
+    harus beda nyata.
+ 5. DEPLOY. Upload ke hosting statis. Kasih link hanya ke pembeli.
+================================================================================
+-->
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Radar Iklan Lelah</title>
+<style>
+  :root{
+    --accent:#1e3a6e;        /* warna utama — niche analitik iklan */
+    --accent-soft:#dde7f5;   /* versi terang untuk badge/latar */
+    --ink:#1c2430; --muted:#5b6675; --bg:#f6f8fa; --card:#ffffff;
+    --line:#e4e9ef; --maxw:720px; --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.65;
+    font-size:clamp(15px,2.6vw,17px);
+  }
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:clamp(16px,4vw,32px)}
+  .screen{display:none}
+  .screen.active{display:block;animation:fadein .35s ease}
+  @keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:clamp(18px,4vw,28px);box-shadow:0 1px 3px rgba(16,24,40,.05)}
+  .btn{display:inline-block;width:100%;text-align:center;background:var(--accent);color:#fff;
+    border:none;border-radius:12px;padding:15px 22px;font-size:clamp(16px,2.8vw,18px);
+    font-weight:700;cursor:pointer;transition:filter .15s, transform .05s}
+  .btn:hover{filter:brightness(1.08)}
+  .btn:active{transform:scale(.99)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .btn-ghost{background:transparent;color:var(--accent);border:2px solid var(--accent)}
+  .btn-row{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+  @media(min-width:560px){.btn-row{flex-direction:row}}
+
+  .badge{display:inline-block;background:var(--accent-soft);color:var(--ink);
+    padding:6px 14px;border-radius:999px;font-size:.82em;font-weight:700;margin-bottom:14px}
+  h1{font-size:clamp(26px,6vw,38px);line-height:1.2;letter-spacing:-.02em;margin-bottom:12px}
+  .tagline{color:var(--muted);font-size:clamp(15px,3vw,18px);margin-bottom:20px}
+  .benefits{list-style:none;margin:18px 0 22px}
+  .benefits li{padding:8px 0 8px 32px;position:relative}
+  .benefits li::before{content:"✓";position:absolute;left:4px;top:8px;color:var(--accent);font-weight:800}
+  .finePrint{font-size:.8em;color:var(--muted);margin-top:14px}
+
+  .field{margin-bottom:18px}
+  .field label{display:block;font-weight:700;margin-bottom:6px}
+  .field .help{font-size:.82em;color:var(--muted);margin-bottom:8px}
+  .field input,.field select,.field textarea{
+    width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:10px;
+    font-size:16px;font-family:inherit;background:#fff;color:var(--ink)}
+  .field textarea{min-height:110px;resize:vertical}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+  .field.err input,.field.err select,.field.err textarea{border-color:#d64545}
+  .errmsg{color:#d64545;font-size:.82em;margin-top:5px;display:none}
+  .field.err .errmsg{display:block}
+  .progress{height:6px;background:var(--line);border-radius:99px;margin-bottom:22px;overflow:hidden}
+  .progress i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+
+  .loader{text-align:center;padding:28px 0 10px}
+  .spinner{width:44px;height:44px;border:4px solid var(--accent-soft);border-top-color:var(--accent);
+    border-radius:50%;margin:0 auto 16px;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .status{color:var(--muted);font-size:.9em;min-height:1.4em}
+
+  #report{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:clamp(18px,4vw,32px)}
+  #report h1{font-size:clamp(22px,5vw,30px);margin:0 0 14px}
+  #report h2{font-size:clamp(18px,4vw,23px);margin:26px 0 10px;padding-bottom:6px;
+    border-bottom:2px solid var(--accent-soft)}
+  #report h3{font-size:clamp(16px,3.4vw,19px);margin:18px 0 8px;color:var(--accent)}
+  #report p{margin:10px 0}
+  #report ul,#report ol{margin:10px 0 10px 22px}
+  #report li{margin:5px 0}
+  #report table{width:100%;border-collapse:collapse;margin:14px 0;font-size:.92em;display:block;overflow-x:auto}
+  #report th,#report td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  #report th{background:var(--accent-soft);font-weight:700;white-space:nowrap}
+  #report blockquote{border-left:4px solid var(--accent);background:var(--accent-soft);
+    padding:10px 14px;border-radius:0 10px 10px 0;margin:12px 0}
+  #report code{background:#eef1f5;border-radius:5px;padding:2px 6px;font-size:.9em}
+  #report hr{border:none;border-top:1px solid var(--line);margin:20px 0}
+  #report strong{color:var(--ink)}
+  .cursor::after{content:"▋";color:var(--accent);animation:blink 1s step-end infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  .notice{background:#fff7e6;border:1px solid #f0d9a8;border-radius:12px;
+    padding:14px 16px;font-size:.88em;margin-top:16px}
+  .notice.error{background:#fdeeee;border-color:#eec4c4}
+
+  @media print{
+    body{background:#fff}
+    .no-print{display:none !important}
+    #report{border:none;box-shadow:none;padding:0}
+    .wrap{max-width:100%;padding:0}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ LAYAR 1: INTRO ============ -->
+  <section id="screen-intro" class="screen active">
+    <div class="card">
+      <span class="badge">Khusus penjual Meta Ads</span>
+      <h1>Radar Iklan Lelah</h1>
+      <p class="tagline">Tahu iklanmu mulai jenuh sebelum uangmu habis.</p>
+      <ul class="benefits">
+        <li>Baca 4 sinyal kejenuhan dari angkamu sendiri, bukan dari feeling</li>
+        <li>Tahu kapan harus ganti kreatif dan kapan harus tahan</li>
+        <li>Keputusan jelas dengan alasan, bukan tebakan</li>
+      </ul>
+      <button class="btn" onclick="App.start()">Cek iklanku sekarang</button>
+      <p class="finePrint">Analisa dari data yang kamu masukkan. Bukan jaminan hasil iklan.</p>
+    </div>
+  </section>
+
+  <!-- ============ LAYAR 2: LOGIN PEMBELI ============ -->
+  <section id="screen-login" class="screen">
+    <div class="card">
+      <h1 style="font-size:clamp(20px,4.5vw,26px)">Masuk pakai email pembelian</h1>
+      <p class="tagline">Kami kirim link masuk ke email yang kamu pakai waktu beli. Tidak perlu password.</p>
+      <div class="field">
+        <label for="loginEmail">Email pembelian</label>
+        <input type="email" id="loginEmail" placeholder="nama@email.com" autocomplete="email">
+      </div>
+      <button class="btn" id="btnLink" onclick="App.sendLink()">Kirim link masuk</button>
+      <div class="notice" id="loginMsg" style="display:none"></div>
+      <p class="finePrint">Belum membeli? <a href="{{BUY_URL}}" rel="noopener">Beli di sini</a>.</p>
+    </div>
+  </section>
+
+  <!-- ============ LAYAR 3: FORM ============ -->
+  <section id="screen-form" class="screen">
+    <div class="card">
+      <div class="progress"><i id="bar"></i></div>
+      <h1 style="font-size:clamp(20px,4.5vw,26px)">Tempel data iklanmu</h1>
+      <p class="tagline">Ambil angka harian 7 hari dari Ads Manager. Makin lengkap, makin tajam analisanya.</p>
+      <form id="theForm" onsubmit="return false;"></form>
+      <button class="btn" id="btnGenerate" onclick="App.generate()">Analisa iklanku</button>
+    </div>
+  </section>
+
+  <!-- ============ LAYAR 4: LOADING + HASIL ============ -->
+  <section id="screen-result" class="screen">
+    <div class="loader no-print" id="loader">
+      <div class="spinner"></div>
+      <p><strong>Sebentar ya…</strong></p>
+      <p class="status" id="status">Membaca tren iklanmu…</p>
+    </div>
+    <div id="report" style="display:none"></div>
+    <div class="notice error no-print" id="errBox" style="display:none"></div>
+    <div class="btn-row no-print" id="resultActions" style="display:none">
+      <button class="btn" onclick="window.print()">📄 Simpan sebagai PDF</button>
+      <button class="btn btn-ghost" onclick="App.showForm()">✏️ Ubah Data</button>
+    </div>
+    <div class="btn-row no-print" id="retryActions" style="display:none">
+      <button class="btn" onclick="App.generate(true)">🔄 Coba Lagi</button>
+      <button class="btn btn-ghost" onclick="App.showForm()">✏️ Ubah Data</button>
+    </div>
+    <p class="finePrint no-print" style="text-align:center;margin-top:14px">Keputusan tetap di tanganmu. Analisa ini tidak mengubah iklan di akun Meta-mu.</p>
+  </section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ================================================================
+   BAGIAN A — YANG DIEDIT PER APP (CONFIG, FIELDS, PROMPT)
+   ================================================================ */
+
+const CONFIG = {
+  APP_NAME: "Radar Iklan Lelah",
+  SITE_NAME: "Radar Iklan Lelah",
+
+  // Diisi saat pasang gerbang bayar (pasang-gerbang-bayar-orderhero)
+  SUPABASE_URL: "https://kynaezoyalzibcpcokao.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_FJX4mNUgi3WJquoTyiKcww_64PbX54U",
+  BUY_URL: "{{BUY_URL}}",
+  SUPPORT_WA: "",
+
+  // Endpoint ai-proxy (Supabase Edge Function). Key OpenRouter ada di server.
+  PROXY_PATH: "/functions/v1/ai-proxy",
+
+  // Rantai fallback: dicoba urut dari atas kalau proxy menolak model tertentu.
+  MODELS: [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "openai/gpt-oss-20b:free",
+    "openrouter/free"
+  ],
+
+  MAX_TOKENS: 4000,
+  TEMPERATURE: 0.5
+};
+
+// Form personalisasi. Tipe: "text" | "textarea" | "number" | "select".
+// Tiap field WAJIB dipakai di buildUserPrompt() di bawah.
+const FIELDS = [
+  { id:"nama", label:"Nama panggilan", type:"text", required:true, placeholder:"cth: Dinda", help:"Biar laporannya menyapa kamu." },
+  { id:"audiens", label:"Jenis audiens iklan", type:"select", required:true, options:["Dingin (prospecting)","Retargeting"], help:"Dingin = orang yang belum kenal tokomu. Retargeting = orang yang pernah klik atau kunjungi." },
+  { id:"umur_iklan", label:"Umur iklan (hari)", type:"number", required:true, placeholder:"cth: 12", help:"Jumlah hari sejak iklan ini pertama kali tayang." },
+  { id:"target_cpa", label:"Target biaya per hasil (Rp)", type:"number", required:true, placeholder:"cth: 25000", help:"Biaya per pembelian atau per hasil yang kamu anggap sehat." },
+  { id:"margin", label:"Margin kotor (%)", type:"number", required:false, placeholder:"cth: 40", help:"Persen keuntungan kotor setelah modal produk. Kosongkan kalau belum tahu." },
+  { id:"metode", label:"Cara keputusan", type:"select", required:true, options:["Tren 4 sinyal vs baseline 7 hari","Batas break-even (isi margin dulu)"], help:"Tren 4 sinyal = pilihan utama. Batas break-even hanya bisa dipakai kalau margin diisi." },
+  { id:"data_7hari", label:"Data harian 7 hari dari Ads Manager", type:"textarea", required:true, placeholder:"tanggal | frekuensi | CTR tautan | CPM | biaya per hasil | ROAS\n1 | 1.6 | 2.4% | 17000 | 21000 | 2.8\n2 | 1.8 | 2.2% | 18000 | 22000 | 2.7\n...", help:"Salin per hari, minimal 7 baris. Tempel apa adanya dari tabel Ads Manager." },
+  { id:"catatan", label:"Perubahan minggu ini (opsional)", type:"textarea", required:false, placeholder:"cth: ganti thumbnail hari ke-5, ada promo ongkir", help:"Apa pun yang kamu ubah di iklan atau toko minggu ini." }
+];
+
+// PERAN + ATURAN AHLI (nilai jual app).
+const SYSTEM_PROMPT = `Kamu adalah analis performa iklan Meta Ads yang terbiasa membaca laporan penjual kecil Indonesia. Kamu bisa membedakan kejenuhan kreatif dari masalah tracking atau audiens. Kamu menulis untuk penjual yang mengurus iklannya sendiri, dengan bahasa santai dan jelas.
+
+ATURAN AHLI (wajib dipatuhi, urut):
+1. Minta minimal 7 hari data harian sebelum memberi keputusan. Kalau data kurang dari 7 hari, JANGAN beri keputusan ganti atau matikan. Tulis data apa yang kurang dan kapan bisa dinilai.
+2. Bandingkan 7 hari terakhir dengan baseline. Kalau user tidak punya data 30 hari, pakai hari pertama di data sebagai baseline dan tulis bahwa baseline-nya pendek. Jangan bandingkan dengan iklan lain.
+3. Tandai kejenuhan hanya jika minimal dua metrik memburuk 20 sampai 30 persen atau lebih dalam rentang 7 hari yang sama, dan frekuensi ikut naik.
+4. Jangan pernah menyebut iklan jenuh hanya karena frekuensi tinggi. Frekuensi selalu dibaca bersama tren biaya per hasil.
+5. Untuk audiens dingin: frekuensi sekitar 2,5 adalah waspada, sekitar 3,5 adalah kritis. Untuk retargeting, rentang 4,0 sampai 6,0. Tulis di laporan bahwa ambang ini praktik umum dari praktisi, bukan aturan resmi Meta.
+6. Label "Creative limited" atau "Creative fatigue" dari Meta hanya konfirmasi. Meta membandingkan biaya per hasil dengan iklan lama: limited jika lebih tinggi tapi kurang dari dua kali lipat, fatigue jika dua kali lipat atau lebih.
+7. Iklan yang baru diedit atau umurnya di bawah 7 hari jangan direkomendasikan dimatikan. Tulis "data belum stabil".
+8. Rekomendasi MATIKAN hanya jika ROAS di bawah break-even selama dua periode 7 hari berturut-turut. Break-even ROAS = 100 dibagi margin kotor (dalam persen). Kalau margin tidak diisi, jangan hitung break-even dan jangan beri rekomendasi matikan.
+9. Sebelum menyalahkan kreatif, minta user memastikan tracking dan event konversi benar. Kalau tracking diragukan, itu penyebab pertama yang dicek.
+10. Kalau catatan user menyebut perubahan kreatif yang memulihkan performa, catat sebagai bukti penyebabnya ada di kreatif. Kalau tidak, sarankan cek audiens atau tracking.
+11. Jangan memberi jaminan hasil, saran keuangan pribadi, atau mengklaim sudah mengubah iklan di akun.
+12. Keputusan selalu di tangan penjual. Tulis itu di bagian penutup.
+
+Format output: markdown murni (gunakan ##, tabel dengan |, dan daftar bernomor). Tanpa basa-basi pembuka atau penutup di luar struktur. Bahasa Indonesia.`;
+
+// Susun instruksi dari jawaban form. `a` = objek jawaban, a.<id field>.
+function buildUserPrompt(a){
+  return `Nama penjual: ${a.nama}. Jenis audiens: ${a.audiens}. Umur iklan: ${a.umur_iklan} hari, pakai untuk aturan 1 dan 7. Target biaya per hasil: Rp ${a.target_cpa}, jadikan patokan di aturan 2 dan 3. Margin kotor: ${a.margin || 'tidak diisi'}. Kalau margin diisi, hitung break-even ROAS dan pakai di aturan 8. Kalau tidak, aturan 8 tidak bisa dipakai. Cara keputusan yang dipilih: ${a.metode}. Kalau pilihannya tren 4 sinyal, fokus ke aturan 1 sampai 7 dan 9 sampai 10. Kalau pilihannya batas break-even, jalankan aturan 1 sampai 3, lalu aturan 8.
+
+Data harian dari penjual, tempel apa adanya:
+${a.data_7hari}
+
+Perubahan yang dicatat penjual minggu ini: ${a.catatan || 'tidak ada'}. Kalau ada perubahan, sebut dan kaitkan dengan temuan.
+
+Susun laporan dalam markdown, 700 sampai 1000 kata. Jangan diringkas. Struktur wajib:
+## Ringkasan
+(3 kalimat)
+## Cek data
+(berapa hari data, cukup atau tidak, baseline yang dipakai)
+## Tabel tren
+| Metrik | Baseline | 7 hari terakhir | Perubahan % | Arah |
+(isi frekuensi, CTR tautan, CPM, biaya per hasil, dan ROAS jika ada)
+## Diagnosis
+(kreatif, audiens, atau tracking, dengan alasan dari angka)
+## Keputusan
+(tepat satu: GANTI KREATIF, TAHAN, MATIKAN, atau TUNGGU DATA, dengan alasan)
+## Langkah hari ini
+(3 langkah konkret)
+## Batas dan catatan
+(tulis ambang praktisi kalau dipakai, dan bahwa keputusan di tangan penjual)
+
+Cek-silang: hitung ulang setiap perubahan persen dari angka data. Kalau tidak cocok, perbaiki sebelum menulis.`;
+}
+
+/* ================================================================
+   BAGIAN B — MESIN APP (JANGAN DIUBAH kecuali tahu yang dilakukan)
+   Login magic link → form → ai-proxy (streaming + fallback) → markdown → PDF
+   ================================================================ */
+
+const App = (() => {
+  const $ = id => document.getElementById(id);
+  const show = id => {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    $(id).classList.add("active");
+    window.scrollTo({top:0, behavior:"smooth"});
+  };
+
+  const SB = (window.supabase && CONFIG.SUPABASE_URL.startsWith("https://"))
+    ? window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY)
+    : null;
+
+  async function getSession(){
+    if (!SB) return null;
+    const { data } = await SB.auth.getSession();
+    return data.session || null;
+  }
+
+  /* ---------- navigasi ---------- */
+  async function start(){
+    const s = await getSession();
+    if (s) showForm(); else show("screen-login");
+  }
+
+  async function sendLink(){
+    const email = $("loginEmail").value.trim();
+    const btn = $("btnLink"), msg = $("loginMsg");
+    msg.style.display = "none";
+    if (!email || !email.includes("@")){
+      msg.className = "notice error"; msg.textContent = "Isi email pembelian kamu dulu ya.";
+      msg.style.display = "block"; return;
+    }
+    if (!SB){
+      msg.className = "notice error"; msg.textContent = "Gerbang belum terpasang. Hubungi penjual.";
+      msg.style.display = "block"; return;
+    }
+    btn.disabled = true; btn.textContent = "Mengirim…";
+    const { error } = await SB.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false, emailRedirectTo: location.href.split("#")[0] }
+    });
+    btn.disabled = false; btn.textContent = "Kirim link masuk";
+    msg.className = "notice";
+    msg.textContent = error
+      ? "Link belum bisa dikirim. Coba lagi sebentar."
+      : "Kalau email ini sudah membeli, link masuk sudah dikirim. Cek juga folder spam.";
+    msg.style.display = "block";
+  }
+
+  function showForm(){
+    if (!$("theForm").innerHTML) renderForm();
+    show("screen-form");
+  }
+
+  /* ---------- form ---------- */
+  function renderForm(){
+    const f = $("theForm");
+    f.innerHTML = FIELDS.map(fd => {
+      const req = fd.required ? "<span style='color:#d64545'>*</span>" : "";
+      const help = fd.help ? `<p class="help">${fd.help}</p>` : "";
+      let input;
+      if (fd.type === "select"){
+        input = `<select id="f_${fd.id}"><option value="">— pilih —</option>` +
+          fd.options.map(o => `<option>${o}</option>`).join("") + `</select>`;
+      } else if (fd.type === "textarea"){
+        input = `<textarea id="f_${fd.id}" placeholder="${(fd.placeholder||"").replace(/"/g,"&quot;")}"></textarea>`;
+      } else {
+        input = `<input type="${fd.type==="number"?"number":"text"}" id="f_${fd.id}" placeholder="${(fd.placeholder||"").replace(/"/g,"&quot;")}" ${fd.type==="number"?'inputmode="decimal"':""}>`;
+      }
+      return `<div class="field" id="w_${fd.id}">
+        <label for="f_${fd.id}">${fd.label} ${req}</label>${help}${input}
+        <p class="errmsg">Bagian ini wajib diisi dulu ya.</p></div>`;
+    }).join("");
+    f.addEventListener("input", updateBar);
+    updateBar();
+  }
+
+  function updateBar(){
+    const total = FIELDS.length;
+    const filled = FIELDS.filter(fd => ($("f_"+fd.id)?.value||"").trim()).length;
+    $("bar").style.width = (total ? Math.round(filled/total*100) : 0) + "%";
+  }
+
+  function collect(){
+    const a = {}; let ok = true;
+    FIELDS.forEach(fd => {
+      const el = $("f_"+fd.id), w = $("w_"+fd.id);
+      const v = (el.value||"").trim();
+      if (fd.required && !v){ w.classList.add("err"); ok = false; }
+      else w.classList.remove("err");
+      a[fd.id] = v;
+    });
+    if (!ok){
+      const firstErr = document.querySelector(".field.err");
+      if (firstErr) firstErr.scrollIntoView({behavior:"smooth", block:"center"});
+    }
+    return ok ? a : null;
+  }
+
+  /* ---------- markdown → html ---------- */
+  function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function inline(s){
+    return s
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
+  }
+  function mdToHtml(md){
+    const lines = md.replace(/\r/g,"").split("\n");
+    let html = "", i = 0, inCode = false, codeBuf = [], pBuf = [];
+    const closeP = () => { if (pBuf.length) html += `<p>${inline(esc(pBuf.join(" ")))}</p>`; pBuf = []; };
+
+    while (i < lines.length){
+      const L = lines[i];
+      if (/^```/.test(L)){
+        closeP();
+        if (inCode){ html += `<pre><code>${esc(codeBuf.join("\n"))}</code></pre>`; codeBuf=[]; inCode=false; }
+        else inCode = true;
+        i++; continue;
+      }
+      if (inCode){ codeBuf.push(L); i++; continue; }
+
+      if (/^\s*\|.*\|\s*$/.test(L) && i+1 < lines.length && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i+1])){
+        closeP();
+        const rows = [];
+        let j = i;
+        while (j < lines.length && /^\s*\|.*\|\s*$/.test(lines[j])){ rows.push(lines[j]); j++; }
+        const cells = r => r.trim().replace(/^\||\|$/g,"").split("|").map(c => inline(esc(c.trim())));
+        html += "<table><thead><tr>" + cells(rows[0]).map(c=>`<th>${c}</th>`).join("") + "</tr></thead><tbody>";
+        for (let k = 2; k < rows.length; k++)
+          html += "<tr>" + cells(rows[k]).map(c=>`<td>${c}</td>`).join("") + "</tr>";
+        html += "</tbody></table>";
+        i = j; continue;
+      }
+
+      const h = L.match(/^(#{1,4})\s+(.*)/);
+      if (h){ closeP(); const n = h[1].length; html += `<h${n}>${inline(esc(h[2]))}</h${n}>`; i++; continue; }
+
+      if (/^\s*(---+|\*\*\*+)\s*$/.test(L)){ closeP(); html += "<hr>"; i++; continue; }
+
+      if (/^\s*>/.test(L)){
+        closeP();
+        const buf = [];
+        while (i < lines.length && /^\s*>/.test(lines[i])){ buf.push(lines[i].replace(/^\s*>\s?/,"")); i++; }
+        html += `<blockquote>${inline(esc(buf.join(" ")))}</blockquote>`; continue;
+      }
+
+      if (/^\s*[-*+]\s+/.test(L) || /^\s*\d+[.)]\s+/.test(L)){
+        closeP();
+        const ordered = /^\s*\d+[.)]\s+/.test(L);
+        const items = [];
+        while (i < lines.length && (/^\s*[-*+]\s+/.test(lines[i]) || /^\s*\d+[.)]\s+/.test(lines[i]))){
+          items.push(lines[i].replace(/^\s*[-*+]\s+/,"").replace(/^\s*\d+[.)]\s+/,""));
+          i++;
+        }
+        const tag = ordered ? "ol" : "ul";
+        html += `<${tag}>` + items.map(x=>`<li>${inline(esc(x))}</li>`).join("") + `</${tag}>`;
+        continue;
+      }
+
+      if (!L.trim()){ closeP(); i++; continue; }
+      pBuf.push(L.trim()); i++;
+    }
+    closeP();
+    if (inCode) html += `<pre><code>${esc(codeBuf.join("\n"))}</code></pre>`;
+    return html;
+  }
+
+  /* ---------- panggilan ai-proxy (streaming + fallback) ---------- */
+  let lastAnswers = null;
+
+  function httpErr(status, detail){
+    const e = new Error(detail || ("HTTP " + status)); e.status = status; return e;
+  }
+
+  async function callProxy(model, messages, onChunk){
+    const s = await getSession();
+    if (!s) throw httpErr(401, "belum login");
+
+    const res = await fetch(CONFIG.SUPABASE_URL + CONFIG.PROXY_PATH, {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + s.access_token,
+        "apikey": CONFIG.SUPABASE_ANON_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model, messages, stream: true,
+        max_tokens: CONFIG.MAX_TOKENS, temperature: CONFIG.TEMPERATURE,
+        app: CONFIG.APP_NAME
+      })
+    });
+    if (!res.ok){
+      const t = await res.text().catch(()=> "");
+      throw httpErr(res.status, t.slice(0,200));
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "", total = "";
+    while (true){
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream:true});
+      const parts = buf.split("\n");
+      buf = parts.pop();
+      for (const line of parts){
+        const m = line.match(/^data:\s*(.*)/);
+        if (!m || m[1] === "[DONE]") continue;
+        try {
+          const d = JSON.parse(m[1]);
+          const delta = d.choices?.[0]?.delta?.content || "";
+          if (delta){ total += delta; onChunk(total); }
+        } catch(e){}
+      }
+    }
+    return total;
+  }
+
+  async function generate(isRetry){
+    const a = isRetry && lastAnswers ? lastAnswers : collect();
+    if (!a) return;
+    lastAnswers = a;
+
+    show("screen-result");
+    $("loader").style.display = "block";
+    $("report").style.display = "none";
+    $("report").innerHTML = "";
+    $("errBox").style.display = "none";
+    $("resultActions").style.display = "none";
+    $("retryActions").style.display = "none";
+
+    const messages = [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: buildUserPrompt(a) }
+    ];
+
+    let rendered = 0;
+    const onChunk = total => {
+      if ($("report").style.display === "none"){
+        $("loader").style.display = "none";
+        $("report").style.display = "block";
+        $("report").classList.add("cursor");
+      }
+      const now = Date.now();
+      if (now - rendered > 120){
+        $("report").innerHTML = mdToHtml(total);
+        rendered = now;
+      }
+    };
+
+    let lastErr = null, output = "";
+    for (let m = 0; m < CONFIG.MODELS.length; m++){
+      const model = CONFIG.MODELS[m];
+      $("status").textContent = m === 0
+        ? "Membaca tren iklanmu…"
+        : "Jalur pertama penuh, mencoba jalur lain (" + (m+1) + "/" + CONFIG.MODELS.length + ")…";
+      try {
+        output = await callProxy(model, messages, onChunk);
+        if (output.trim()){ lastErr = null; break; }
+        lastErr = new Error("Model tidak mengembalikan isi.");
+      } catch(e){
+        lastErr = e;
+        // Belum login / bukan member / jatah habis: jangan coba model lain.
+        if (e.status === 401 || e.status === 403 || e.status === 402) break;
+      }
+    }
+
+    $("report").classList.remove("cursor");
+
+    if (lastErr || !output.trim()){
+      $("loader").style.display = "none";
+      $("report").style.display = "none";
+      const st = lastErr && lastErr.status;
+      let msg;
+      if (st === 401) msg = "<strong>Kamu belum masuk.</strong> Masuk lagi pakai email pembelian kamu.";
+      else if (st === 403) msg = "<strong>Email ini belum terdaftar sebagai member.</strong> Pakai email yang dipakai waktu beli, atau hubungi penjual.";
+      else if (st === 402) msg = "<strong>Jatah analisa kamu hari ini sudah habis.</strong> Coba lagi besok.";
+      else if (st === 429 || st === 503) msg = "<strong>Server AI lagi ramai banget.</strong> Ini bukan error dari kamu. Tunggu ±1 menit, lalu tekan Coba Lagi. Datamu tidak hilang.";
+      else msg = "<strong>Hasil belum bisa dibuat.</strong> Cek koneksi internetmu, tunggu sebentar, lalu tekan Coba Lagi. Kalau masih gagal, hubungi penjual.";
+      $("errBox").innerHTML = msg;
+      $("errBox").style.display = "block";
+      $("retryActions").style.display = "flex";
+      return;
+    }
+
+    $("report").innerHTML = mdToHtml(output);
+    $("resultActions").style.display = "flex";
+  }
+
+  /* ---------- sesi ---------- */
+  if (SB){
+    SB.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session && $("screen-login").classList.contains("active")){
+        showForm();
+      }
+    });
+  }
+
+  return { start, sendLink, showForm, generate };
+})();
+</script>
+</body>
+</html>
