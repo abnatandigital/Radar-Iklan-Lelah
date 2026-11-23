@@ -160,7 +160,7 @@
     <div class="card">
       <div class="progress"><i id="bar"></i></div>
       <h1 style="font-size:clamp(20px,4.5vw,26px)">Tempel data iklanmu</h1>
-      <p class="tagline">Ambil angka harian 7 hari dari Ads Manager. Makin lengkap, makin tajam analisanya.</p>
+      <p class="tagline">Isi angka harian dari Ads Manager. Cukup 1 hari juga bisa dianalisa. Makin banyak hari, makin tajam analisanya.</p>
       <form id="theForm" onsubmit="return false;"></form>
       <button class="btn" id="btnGenerate" onclick="App.generate()">Analisa iklanku</button>
     </div>
@@ -226,8 +226,8 @@ const FIELDS = [
   { id:"umur_iklan", label:"Umur iklan (hari)", type:"number", required:true, placeholder:"cth: 12", help:"Jumlah hari sejak iklan ini pertama kali tayang." },
   { id:"target_cpa", label:"Target biaya per hasil (Rp)", type:"number", required:true, placeholder:"cth: 25000", help:"Biaya per pembelian atau per hasil yang kamu anggap sehat." },
   { id:"margin", label:"Margin kotor (%)", type:"number", required:false, placeholder:"cth: 40", help:"Persen keuntungan kotor setelah modal produk. Kosongkan kalau belum tahu." },
-  { id:"metode", label:"Cara keputusan", type:"select", required:true, options:["Tren 4 sinyal vs baseline 7 hari","Batas break-even (isi margin dulu)"], help:"Tren 4 sinyal = pilihan utama. Batas break-even hanya bisa dipakai kalau margin diisi." },
-  { id:"data_7hari", label:"Data harian 7 hari dari Ads Manager", type:"grid", required:true, help:"Pilih tanggal mulai, lalu isi angka tiap kolom dari Ads Manager untuk setiap hari." },
+  { id:"metode", label:"Cara keputusan", type:"select", required:true, options:["Tren 4 sinyal vs baseline","Batas break-even (isi margin dulu)"], help:"Tren 4 sinyal = pilihan utama. Batas break-even hanya bisa dipakai kalau margin diisi." },
+  { id:"data_7hari", label:"Data harian dari Ads Manager", type:"grid", required:true, help:"Pilih tanggal mulai, lalu isi angka tiap kolom untuk setiap hari. Minimal 1 hari lengkap. Hari yang belum ada, kosongkan saja." },
   { id:"catatan", label:"Perubahan minggu ini (opsional)", type:"textarea", required:false, placeholder:"cth: ganti thumbnail hari ke-5, ada promo ongkir", help:"Apa pun yang kamu ubah di iklan atau toko minggu ini." }
 ];
 
@@ -235,9 +235,9 @@ const FIELDS = [
 const SYSTEM_PROMPT = `Kamu adalah analis performa iklan Meta Ads yang terbiasa membaca laporan penjual kecil Indonesia. Kamu bisa membedakan kejenuhan kreatif dari masalah tracking atau audiens. Kamu menulis untuk penjual yang mengurus iklannya sendiri, dengan bahasa santai dan jelas.
 
 ATURAN AHLI (wajib dipatuhi, urut):
-1. Minta minimal 7 hari data harian sebelum memberi keputusan. Kalau data kurang dari 7 hari, JANGAN beri keputusan ganti atau matikan. Tulis data apa yang kurang dan kapan bisa dinilai.
-2. Bandingkan 7 hari terakhir dengan baseline. Kalau user tidak punya data 30 hari, pakai hari pertama di data sebagai baseline dan tulis bahwa baseline-nya pendek. Jangan bandingkan dengan iklan lain.
-3. Tandai kejenuhan hanya jika minimal dua metrik memburuk 20 sampai 30 persen atau lebih dalam rentang 7 hari yang sama, dan frekuensi ikut naik.
+1. Analisa selalu dijalankan, berapa pun jumlah hari datanya, mulai dari 1 hari. Kalau data kurang dari 7 hari, tulis di "Cek data" bahwa hasilnya sementara dan sebut berapa hari lagi yang dibutuhkan untuk hasil yang lebih stabil.
+2. Bandingkan periode terbaru dengan baseline dari data yang sama. Kalau data 7 hari atau lebih, pakai 7 hari terakhir sebagai periode terbaru dan sisanya sebagai baseline. Kalau data kurang dari 7 hari, bagi data jadi bagian awal (baseline) dan bagian akhir (periode terbaru). Kalau datanya hanya 1 hari, tidak ada tren: baca angka hari itu terhadap target biaya per hasil dan tulis bahwa tren belum bisa dinilai. Jangan bandingkan dengan iklan lain.
+3. Tandai kejenuhan hanya jika minimal dua metrik memburuk 20 sampai 30 persen atau lebih antara baseline dan periode terbaru, dan frekuensi ikut naik. Dengan data kurang dari 3 hari, jangan tandai kejenuhan.
 4. Jangan pernah menyebut iklan jenuh hanya karena frekuensi tinggi. Frekuensi selalu dibaca bersama tren biaya per hasil.
 5. Untuk audiens dingin: frekuensi sekitar 2,5 adalah waspada, sekitar 3,5 adalah kritis. Untuk retargeting, rentang 4,0 sampai 6,0. Tulis di laporan bahwa ambang ini praktik umum dari praktisi, bukan aturan resmi Meta.
 6. Label "Creative limited" atau "Creative fatigue" dari Meta hanya konfirmasi. Meta membandingkan biaya per hasil dengan iklan lama: limited jika lebih tinggi tapi kurang dari dua kali lipat, fatigue jika dua kali lipat atau lebih.
@@ -254,7 +254,7 @@ Format output: markdown murni (gunakan ##, tabel dengan |, dan daftar bernomor).
 function buildUserPrompt(a){
   return `Nama penjual: ${a.nama}. Jenis audiens: ${a.audiens}. Umur iklan: ${a.umur_iklan} hari, pakai untuk aturan 1 dan 7. Target biaya per hasil: Rp ${a.target_cpa}, jadikan patokan di aturan 2 dan 3. Margin kotor: ${a.margin || 'tidak diisi'}. Kalau margin diisi, hitung break-even ROAS dan pakai di aturan 8. Kalau tidak, aturan 8 tidak bisa dipakai. Cara keputusan yang dipilih: ${a.metode}. Kalau pilihannya tren 4 sinyal, fokus ke aturan 1 sampai 7 dan 9 sampai 10. Kalau pilihannya batas break-even, jalankan aturan 1 sampai 3, lalu aturan 8.
 
-Data harian dari penjual, tempel apa adanya:
+Data harian dari penjual, tempel apa adanya (jumlah hari data: ${a.jumlah_hari}):
 ${a.data_7hari}
 
 Perubahan yang dicatat penjual minggu ini: ${a.catatan || 'tidak ada'}. Kalau ada perubahan, sebut dan kaitkan dengan temuan.
@@ -265,18 +265,18 @@ Susun laporan dalam markdown, 700 sampai 1000 kata. Jangan diringkas. Struktur w
 ## Cek data
 (berapa hari data, cukup atau tidak, baseline yang dipakai)
 ## Tabel tren
-| Metrik | Baseline | 7 hari terakhir | Perubahan % | Arah |
-(isi frekuensi, CTR tautan, CPM, biaya per hasil, dan ROAS jika ada)
+| Metrik | Baseline | Periode terbaru | Perubahan % | Arah |
+(isi frekuensi, CTR tautan, CPM, biaya per hasil, dan ROAS jika ada. Kalau datanya hanya 1 hari, isi kolom Baseline dengan "belum ada" dan kolom Perubahan % dengan "-")
 ## Diagnosis
 (kreatif, audiens, atau tracking, dengan alasan dari angka)
 ## Keputusan
-(tepat satu: GANTI KREATIF, TAHAN, MATIKAN, atau TUNGGU DATA, dengan alasan)
+(tepat satu: GANTI KREATIF, TAHAN, MATIKAN, atau TUNGGU DATA, dengan alasan. Dengan data kurang dari 3 hari, pilih TAHAN atau TUNGGU DATA. MATIKAN tetap hanya boleh sesuai aturan 8)
 ## Langkah hari ini
 (3 langkah konkret)
 ## Batas dan catatan
 (tulis ambang praktisi kalau dipakai, dan bahwa keputusan di tangan penjual)
 
-Cek-silang: hitung ulang setiap perubahan persen dari angka data. Kalau tidak cocok, perbaiki sebelum menulis.`;
+Cek-silang: hitung ulang setiap perubahan persen dari angka data. Kalau tidak cocok, perbaiki sebelum menulis. Jangan menghitung tren dari hari yang kosong atau tidak diisi.`;
 }
 
 /* ================================================================
@@ -339,7 +339,8 @@ const App = (() => {
   }
 
   /* ---------- form ---------- */
-  /* grid 7 hari: dropdown tanggal mulai + 7 baris x 5 kolom angka */
+  /* grid harian: dropdown tanggal mulai + baris x 5 kolom angka. Minimal 1 hari, maksimal 30 hari. */
+  const MAX_HARI = 30;
   const GRID_COLS = [
     ["frekuensi", "Frekuensi", "any"],
     ["ctr", "CTR tautan (%)", "any"],
@@ -351,7 +352,7 @@ const App = (() => {
   const isoTgl = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
   function gridHtml(fd){
     const head = `<tr><th>Tanggal</th>${GRID_COLS.map(c => `<th>${c[1]}</th>`).join("")}</tr>`;
-    const rows = [0,1,2,3,4,5,6].map(i =>
+    const rows = Array.from({length: MAX_HARI}, (_, i) =>
       `<tr><td id="d_${i}" class="gd">—</td>` +
       GRID_COLS.map((c,k) => `<td><input type="number" step="any" inputmode="decimal" id="g_${i}_${k}"></td>`).join("") +
       `</tr>`).join("");
@@ -359,15 +360,25 @@ const App = (() => {
       `<p class="help">${fd.help}</p>` +
       `<select id="f_tgl_mulai"><option value="">— pilih tanggal mulai —</option>${tplDateOptions()}</select>` +
       `<div class="gridwrap"><table class="grid"><thead>${head}</thead><tbody>${rows}</tbody></table></div>` +
-      `<p class="errmsg">Bagian ini wajib diisi dulu ya.</p></div>`;
+      `<p class="help">Isi dari hari pertama ke bawah. Hari yang belum ada tidak perlu diisi.</p>` +
+      `<p class="errmsg">Isi tanggal mulai dan minimal 1 hari lengkap (5 angka). Hari harus berurutan dari atas.</p></div>`;
   }
-  function gridFilled(){
-    if (!$("f_tgl_mulai").value) return false;
-    for (let i = 0; i < 7; i++)
-      for (let k = 0; k < GRID_COLS.length; k++)
-        if (!($("g_"+i+"_"+k).value||"").trim()) return false;
-    return true;
+  // Baca baris grid. Hasil: { rows: [...baris lengkap], ok: boolean }.
+  // Baris kosong hanya boleh di bawah baris terakhir yang terisi (berurutan dari hari pertama).
+  function readGrid(){
+    const rows = [];
+    let ok = !!$("f_tgl_mulai").value, selesai = false;
+    for (let i = 0; i < MAX_HARI; i++){
+      const vals = GRID_COLS.map((c,k) => ($("g_"+i+"_"+k).value||"").trim());
+      const terisi = vals.filter(v => v).length;
+      if (terisi === 0){ selesai = true; continue; }
+      if (selesai || terisi < GRID_COLS.length){ ok = false; continue; }
+      rows.push({ tgl: $("d_"+i).textContent, vals });
+    }
+    if (rows.length === 0) ok = false;
+    return { rows, ok };
   }
+  function gridFilled(){ return readGrid().ok; }
   function tplDateOptions(){
     const today = new Date();
     const opts = [];
@@ -401,7 +412,7 @@ const App = (() => {
     f.addEventListener("change", (e) => {
       if (e.target.id !== "f_tgl_mulai" || !e.target.value) return;
       const [y, m, d] = e.target.value.split("-").map(Number);
-      for (let i = 0; i < 7; i++)
+      for (let i = 0; i < MAX_HARI; i++)
         $("d_"+i).textContent = fmtTgl(new Date(y, m - 1, d + i));
       updateBar();
     });
@@ -419,20 +430,12 @@ const App = (() => {
     FIELDS.forEach(fd => {
       const w = $("w_"+fd.id);
       if (fd.type === "grid"){
-        const start = $("f_tgl_mulai").value;
-        let full = !!start;
-        const rows = [];
-        for (let i = 0; i < 7; i++){
-          const vals = GRID_COLS.map((c,k) => {
-            const v = ($("g_"+i+"_"+k).value||"").trim();
-            if (!v) full = false;
-            return v;
-          });
-          rows.push([$("d_"+i).textContent, ...vals].join(" | "));
-        }
-        if (fd.required && !full){ w.classList.add("err"); ok = false; }
+        const g = readGrid();
+        if (fd.required && !g.ok){ w.classList.add("err"); ok = false; }
         else w.classList.remove("err");
-        a[fd.id] = ["tanggal | " + GRID_COLS.map(c => c[1]).join(" | "), ...rows].join("\n");
+        const lines = g.rows.map(r => [r.tgl, ...r.vals].join(" | "));
+        a[fd.id] = ["tanggal | " + GRID_COLS.map(c => c[1]).join(" | "), ...lines].join("\n");
+        a.jumlah_hari = g.rows.length;
         return;
       }
       const el = $("f_"+fd.id);
