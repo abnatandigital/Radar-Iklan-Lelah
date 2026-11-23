@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radar Iklan Lelah — Tahu iklanmu jenuh sebelum uangmu habis</title>
+<meta name="description" content="Radar Iklan Lelah membaca angka harian iklan Meta Ads-mu dan memberi keputusan: ganti kreatif, tahan, matikan, atau tunggu data. Rp 99.000 sekali bayar.">
+<style>
+  :root{--navy:#1e3a5e;--navy-2:#0f2540;--teal:#1a8a6b;--teal-soft:#d7f2e8;--ink:#1f2937;--muted:#64748b;--line:#e2e8f0;--bg:#f8fafc}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:#fff;line-height:1.6}
+  img{max-width:100%;display:block}
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px}
+  section{padding:56px 0}
+  h1,h2,h3{line-height:1.25;color:var(--navy);margin:0 0 12px}
+  h1{font-size:clamp(28px,5vw,44px)}
+  h2{font-size:clamp(22px,3.6vw,32px)}
+  h3{font-size:18px}
+  p{margin:0 0 12px}
+  .eyebrow{display:inline-block;background:var(--teal-soft);color:var(--teal);font-weight:bold;font-size:13px;padding:6px 12px;border-radius:999px;margin-bottom:14px}
+  .btn{display:inline-block;background:var(--navy);color:#fff;text-decoration:none;font-weight:bold;padding:16px 26px;border-radius:12px;font-size:16px;text-align:center}
+  .btn:hover{background:var(--navy-2)}
+  .btn-sub{font-size:13px;color:var(--muted);margin-top:10px}
+  /* hero */
+  .hero{background:linear-gradient(160deg,var(--navy-2),var(--navy) 55%,#1f6f78);color:#fff;padding:48px 0 56px}
+  .hero h1{color:#fff}
+  .hero p.lead{font-size:18px;color:#e2f3ef;max-width:620px}
+  .hero .eyebrow{background:rgba(255,255,255,.14);color:#dff7ee}
+  .hero-grid{display:grid;grid-template-columns:1fr;gap:28px;align-items:center}
+  .hero-img{border-radius:20px;max-width:340px;margin:0 auto}
+  @media(min-width:800px){.hero-grid{grid-template-columns:1.1fr .9fr}}
+  .checks{list-style:none;padding:0;margin:18px 0 22px}
+  .checks li{padding:6px 0 6px 28px;position:relative}
+  .checks li:before{content:"✓";position:absolute;left:0;color:#7ee2c2;font-weight:bold}
+  /* masalah */
+  .problem-grid{display:grid;gap:24px;align-items:center}
+  .problem-grid img{border-radius:18px}
+  @media(min-width:800px){.problem-grid{grid-template-columns:1fr 1fr}}
+  .pain{background:var(--bg);border-left:4px solid var(--teal);padding:14px 18px;border-radius:8px;margin:10px 0}
+  /* cara kerja */
+  .steps{display:grid;gap:16px;margin-top:24px}
+  @media(min-width:800px){.steps{grid-template-columns:repeat(3,1fr)}}
+  .card{border:1px solid var(--line);border-radius:14px;padding:22px;background:#fff}
+  .num{width:36px;height:36px;border-radius:50%;background:var(--teal);color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+  /* empat sinyal */
+  .signals{display:grid;gap:14px;margin-top:20px}
+  @media(min-width:700px){.signals{grid-template-columns:repeat(2,1fr)}}
+  .sig{background:var(--bg);border-radius:12px;padding:18px}
+  .sig strong{color:var(--navy)}
+  .sig-img{border-radius:18px;margin:0 auto 10px;max-width:520px}
+  /* keputusan */
+  .decisions{display:grid;gap:12px;margin-top:18px}
+  @media(min-width:700px){.decisions{grid-template-columns:repeat(2,1fr)}}
+  .dec{border-radius:12px;padding:16px 18px;border:1px solid var(--line)}
+  .dec b{display:inline-block;margin-bottom:4px;color:var(--navy)}
+  /* bonus */
+  .bonus{background:var(--navy);color:#fff;border-radius:18px;padding:28px}
+  .bonus h2,.bonus h3{color:#fff}
+  .bonus-grid{display:grid;gap:14px;margin-top:16px}
+  @media(min-width:800px){.bonus-grid{grid-template-columns:repeat(3,1fr)}}
+  .bonus-item{background:rgba(255,255,255,.08);border-radius:12px;padding:16px}
+  .bonus-item p{color:#dbe7f3;font-size:14px;margin:0}
+  /* harga */
+  .price{text-align:center;max-width:520px;margin:0 auto;border:2px solid var(--navy);border-radius:20px;padding:30px 24px}
+  .price .amount{font-size:40px;font-weight:bold;color:var(--navy);margin:6px 0}
+  .price ul{list-style:none;padding:0;text-align:left;margin:16px 0 22px}
+  .price li{padding:6px 0 6px 26px;position:relative}
+  .price li:before{content:"✓";position:absolute;left:0;color:var(--teal);font-weight:bold}
+  /* faq */
+  details{border-bottom:1px solid var(--line);padding:14px 0}
+  summary{cursor:pointer;font-weight:bold;color:var(--navy)}
+  details p{margin:10px 0 0;color:#334155}
+  /* batas */
+  .limits{background:var(--bg);border-radius:14px;padding:20px 22px;font-size:14px;color:#334155}
+  footer{padding:28px 0;font-size:13px;color:var(--muted);border-top:1px solid var(--line)}
+  .sticky{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;box-shadow:0 -4px 14px rgba(0,0,0,.06);z-index:10}
+  .sticky span{font-weight:bold;color:var(--navy)}
+  .sticky .btn{padding:12px 18px;font-size:15px}
+  body{padding-bottom:76px}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">Khusus penjual Meta Ads</span>
+      <h1>Tahu iklanmu mulai jenuh sebelum uangmu habis.</h1>
+      <p class="lead">Radar Iklan Lelah membaca angka harian iklanmu sendiri, lalu memberi satu keputusan yang jelas: ganti kreatif, tahan, matikan, atau tunggu data. Lengkap dengan alasan dan tiga langkah untuk hari ini.</p>
+      <ul class="checks">
+        <li>Baca 4 sinyal kejenuhan dari angkamu sendiri, bukan dari feeling</li>
+        <li>Tahu kapan harus ganti kreatif dan kapan harus tahan</li>
+        <li>Keputusan jelas dengan alasan, bukan tebakan</li>
+      </ul>
+      <a class="btn" href="BUY_URL_DISINI">Cek iklanku sekarang — Rp 99.000</a>
+      <div class="btn-sub">Sekali bayar. Cukup 1 hari data untuk mulai.</div>
+    </div>
+    <img class="hero-img" src="img/hero-ponsel.jpg" alt="Tampilan Radar Iklan Lelah di layar ponsel">
+  </div>
+</section>
+
+<!-- MASALAH -->
+<section>
+  <div class="wrap problem-grid">
+    <div>
+      <span class="eyebrow">Kamu mungkin merasakan ini</span>
+      <h2>Biaya per hasil naik pelan-pelan, dan kamu bingung harus ngapain.</h2>
+      <div class="pain">Kamu tidak yakin apakah kreatifnya yang habis, atau audiensnya yang sudah jenuh.</div>
+      <div class="pain">Frekuensi terlihat tinggi, lalu kamu ragu harus mematikan iklan atau tidak.</div>
+      <div class="pain">Sudah banyak membaca panduan, tapi tetap tidak tahu angka mana yang harus ditindak.</div>
+    </div>
+    <img src="img/lelah-di-meja.jpg" alt="Penjual Meta Ads bekerja larut malam membaca grafik iklan">
+  </div>
+</section>
+
+<!-- CARA KERJA -->
+<section style="background:var(--bg)">
+  <div class="wrap">
+    <span class="eyebrow">Cara kerja</span>
+    <h2>Tiga langkah, tanpa rumus rumit.</h2>
+    <div class="steps">
+      <div class="card">
+        <div class="num">1</div>
+        <h3>Isi data iklanmu</h3>
+        <p>Umur iklan, target biaya per hasil, dan angka harian dari Ads Manager. Cukup 1 hari, bisa sampai 30 hari.</p>
+      </div>
+      <div class="card">
+        <div class="num">2</div>
+        <h3>App membaca tren</h3>
+        <p>Periode terbaru dibandingkan dengan baseline dari data yang sama. Empat sinyal dibaca: frekuensi, CTR tautan, CPM, dan biaya per hasil.</p>
+      </div>
+      <div class="card">
+        <div class="num">3</div>
+        <h3>Kamu dapat keputusan</h3>
+        <p>Satu keputusan, alasannya, dan tiga langkah untuk hari ini. Bisa disimpan sebagai PDF.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EMPAT SINYAL -->
+<section>
+  <div class="wrap">
+    <span class="eyebrow">Yang dibaca app</span>
+    <h2>Empat sinyal dari Ads Manager, dibaca bersama.</h2>
+    <p>Tidak ada satu angka yang berdiri sendiri. Frekuensi tinggi saja belum berarti iklanmu jenuh.</p>
+    <img class="sig-img" src="img/empat-sinyal.jpg" alt="Empat sinyal iklan: frekuensi, CTR, CPM, dan biaya per hasil">
+    <div class="signals">
+      <div class="sig"><strong>Frekuensi</strong><br>Dibaca bersama tren biaya per hasil. Bukan ukuran tunggal.</div>
+      <div class="sig"><strong>CTR tautan</strong><br>Turun berarti hook mulai kehilangan perhatian.</div>
+      <div class="sig"><strong>CPM</strong><br>Naik bisa berarti persaingan atau audiens yang menyempit.</div>
+      <div class="sig"><strong>Biaya per hasil</strong><br>Angka yang paling menentukan. Pastikan event pembelian sudah terbaca.</div>
+    </div>
+  </div>
+</section>
+
+<!-- KEPUTUSAN -->
+<section style="background:var(--bg)">
+  <div class="wrap">
+    <span class="eyebrow">Keputusan</span>
+    <h2>Empat jawaban, selalu dengan alasan.</h2>
+    <div class="decisions">
+      <div class="dec"><b>GANTI KREATIF</b><br>Kejenuhan terlihat jelas dan tracking sudah dicek.</div>
+      <div class="dec"><b>TAHAN</b><br>Ada tanda perubahan, tapi belum cukup untuk bertindak.</div>
+      <div class="dec"><b>MATIKAN</b><br>Hanya kalau ROAS di bawah titik impas dua periode berturut-turut.</div>
+      <div class="dec"><b>TUNGGU DATA</b><br>Data belum cukup atau belum stabil. Lanjutkan pencatatan.</div>
+    </div>
+    <p style="margin-top:18px">Kejenuhan hanya ditandai kalau dua sinyal memburuk 20 sampai 30 persen dan frekuensi ikut naik. Sebelum menyalahkan kreatif, app selalu mengingatkan untuk mengecek tracking dulu.</p>
+  </div>
+</section>
+
+<!-- BONUS -->
+<section>
+  <div class="wrap">
+    <div class="bonus">
+      <span class="eyebrow" style="background:rgba(255,255,255,.14);color:#dff7ee">Bonus gratis untuk pembeli</span>
+      <h2>Tiga bonus yang ikut dikirim ke emailmu.</h2>
+      <div class="bonus-grid">
+        <div class="bonus-item">
+          <h3>Peta 4 Sinyal Kejenuhan</h3>
+          <p>Cheat sheet satu halaman untuk membaca empat sinyal di Ads Manager, tanpa perlu menebak.</p>
+        </div>
+        <div class="bonus-item">
+          <h3>Template Catatan Harian 7 Hari</h3>
+          <p>Tabel untuk mencatat lima angka tiap pagi. Cukup lima menit, dan langsung bisa dianalisa.</p>
+        </div>
+        <div class="bonus-item">
+          <h3>Tracker Keputusan 30 Hari</h3>
+          <p>Checklist harian supaya kamu tidak gampang menyerah sebelum punya data yang cukup.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HARGA -->
+<section>
+  <div class="wrap">
+    <div class="price">
+      <span class="eyebrow">Sekali bayar</span>
+      <h2>Rp 99.000</h2>
+      <p>Akses ke Radar Iklan Lelah dan tiga bonus, langsung dikirim ke email setelah pembayaran.</p>
+      <ul>
+        <li>Analisa dari data harianmu sendiri</li>
+        <li>Keputusan dengan alasan, bukan tebakan</li>
+        <li>Laporan bisa disimpan sebagai PDF</li>
+        <li>Tiga bonus untuk membantu kamu konsisten</li>
+      </ul>
+      <a class="btn" href="BUY_URL_DISINI">Ambil sekarang — Rp 99.000</a>
+      <div class="btn-sub">Pembayaran lewat OrderHero. Akses dikirim ke email pembelian.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section style="background:var(--bg)">
+  <div class="wrap">
+    <span class="eyebrow">Pertanyaan umum</span>
+    <h2>Yang sering ditanyakan.</h2>
+    <details>
+      <summary>Data apa yang saya butuhkan?</summary>
+      <p>Angka harian dari Ads Manager: frekuensi, CTR tautan, CPM, dan biaya per hasil. ROAS dipakai kalau kamu juga mengisi margin kotor.</p>
+    </details>
+    <details>
+      <summary>Harus punya data 7 hari dulu?</summary>
+      <p>Tidak. Cukup 1 hari, dan laporan tetap dibuat. Hasilnya akan lebih tajam kalau datanya makin panjang, sampai 30 hari.</p>
+    </details>
+    <details>
+      <summary>Bisa untuk audiens retargeting?</summary>
+      <p>Bisa. Pilih jenis audiens saat mengisi form, dan app menyesuaikan ambang yang dipakai.</p>
+    </details>
+    <details>
+      <summary>Email pembelian saya harus sama dengan email login?</summary>
+      <p>Ya. Login memakai email yang dipakai saat membeli, lewat link masuk tanpa password.</p>
+    </details>
+    <details>
+      <summary>Apakah app mengubah iklan saya di Meta?</summary>
+      <p>Tidak. App hanya memberi analisa dan keputusan. Semua perubahan di akun Meta tetap kamu yang lakukan.</p>
+    </details>
+    <details>
+      <summary>Apakah ada jaminan hasil iklan?</summary>
+      <p>Tidak. Radar Iklan Lelah membantu membaca angkamu, bukan menjamin hasil iklan. Keputusan tetap di tanganmu.</p>
+    </details>
+    <details>
+      <summary>Kenapa analisa saya gagal atau terbatas?</summary>
+      <p>Setiap akun punya jatah analisa harian. Kalau laporan gagal dibuat, tekan Coba Lagi. Kalau masih gagal, hubungi penjual di [isi kontak].</p>
+    </details>
+  </div>
+</section>
+
+<!-- BATAS -->
+<section>
+  <div class="wrap">
+    <div class="limits">
+      <strong>Batasan yang perlu kamu tahu:</strong>
+      <ul style="margin:10px 0 0 18px;padding:0">
+        <li>Analisa membantu membaca angkamu. Tidak menjamin hasil iklan.</li>
+        <li>Ambang frekuensi yang dipakai adalah praktik umum dari praktisi, bukan aturan resmi Meta.</li>
+        <li>Keputusan tetap di tanganmu. App tidak mengubah iklan di akun Meta-mu.</li>
+        <li>Kebijakan data dan garansi: [isi sesuai kebijakanmu].</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Radar Iklan Lelah · Analisa dari data yang kamu masukkan sendiri · Bukan jaminan hasil iklan.</p>
+    <p>Kontak: [isi kontak penjual]</p>
+  </div>
+</footer>
+
+<div class="sticky">
+  <span>Radar Iklan Lelah · Rp 99.000</span>
+  <a class="btn" href="BUY_URL_DISINI">Ambil sekarang</a>
+</div>
+
+</body>
+</html>
