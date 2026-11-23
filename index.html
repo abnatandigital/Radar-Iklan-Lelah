@@ -221,7 +221,7 @@ const FIELDS = [
   { id:"target_cpa", label:"Target biaya per hasil (Rp)", type:"number", required:true, placeholder:"cth: 25000", help:"Biaya per pembelian atau per hasil yang kamu anggap sehat." },
   { id:"margin", label:"Margin kotor (%)", type:"number", required:false, placeholder:"cth: 40", help:"Persen keuntungan kotor setelah modal produk. Kosongkan kalau belum tahu." },
   { id:"metode", label:"Cara keputusan", type:"select", required:true, options:["Tren 4 sinyal vs baseline 7 hari","Batas break-even (isi margin dulu)"], help:"Tren 4 sinyal = pilihan utama. Batas break-even hanya bisa dipakai kalau margin diisi." },
-  { id:"data_7hari", label:"Data harian 7 hari dari Ads Manager", type:"textarea", required:true, placeholder:"Klik \"Pakai template\" lalu isi angkanya, satu baris per hari.", template:"tanggal | frekuensi | CTR tautan | CPM | biaya per hasil | ROAS\n1 |  |  |  |  | \n2 |  |  |  |  | \n3 |  |  |  |  | \n4 |  |  |  |  | \n5 |  |  |  |  | \n6 |  |  |  |  | \n7 |  |  |  |  | ", help:"Isi satu baris per hari, minimal 7 baris. Atau tempel apa adanya dari tabel Ads Manager." },
+  { id:"data_7hari", label:"Data harian 7 hari dari Ads Manager", type:"textarea", required:true, placeholder:"Pilih tanggal mulai di atas, lalu isi angka tiap hari.", tplDate:true, help:"Pilih tanggal mulai, tanggal 7 hari akan terisi otomatis. Tinggal isi angkanya. Atau tempel apa adanya dari tabel Ads Manager." },
   { id:"catatan", label:"Perubahan minggu ini (opsional)", type:"textarea", required:false, placeholder:"cth: ganti thumbnail hari ke-5, ada promo ongkir", help:"Apa pun yang kamu ubah di iklan atau toko minggu ini." }
 ];
 
@@ -333,6 +333,28 @@ const App = (() => {
   }
 
   /* ---------- form ---------- */
+  /* template tabel 7 hari: tanggal terisi otomatis dari tanggal mulai yang dipilih */
+  const TPL_HEADER = "tanggal | frekuensi | CTR tautan | CPM | biaya per hasil | ROAS";
+  const fmtTgl = (d) => d.toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" });
+  const isoTgl = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  function buildTpl(start){
+    const rows = [];
+    for (let i = 0; i < 7; i++){
+      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      rows.push(`${fmtTgl(d)} |  |  |  |  | `);
+    }
+    return [TPL_HEADER, ...rows].join("\n");
+  }
+  function tplDateOptions(){
+    const today = new Date();
+    const opts = [];
+    for (let i = 0; i < 30; i++){
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+      opts.push(`<option value="${isoTgl(d)}">${fmtTgl(d)}</option>`);
+    }
+    return opts.join("");
+  }
+
   function renderForm(){
     const f = $("theForm");
     f.innerHTML = FIELDS.map(fd => {
@@ -344,7 +366,7 @@ const App = (() => {
           fd.options.map(o => `<option>${o}</option>`).join("") + `</select>`;
       } else if (fd.type === "textarea"){
         input = `<textarea id="f_${fd.id}" placeholder="${(fd.placeholder||"").replace(/"/g,"&quot;")}"></textarea>` +
-          (fd.template ? `<select class="tpl-sel" data-tpl="${fd.id}" style="margin-top:8px"><option value="">— pilih template —</option><option value="kosong">Template 7 hari (kosong, isi sendiri)</option></select>` : "");
+          (fd.tplDate ? `<select class="tpl-sel" data-tpl="${fd.id}" style="margin-top:8px"><option value="">— pilih tanggal mulai —</option>${tplDateOptions()}</select>` : "");
       } else {
         input = `<input type="${fd.type==="number"?"number":"text"}" id="f_${fd.id}" placeholder="${(fd.placeholder||"").replace(/"/g,"&quot;")}" ${fd.type==="number"?'inputmode="decimal"':""}>`;
       }
@@ -358,9 +380,10 @@ const App = (() => {
       if (!sel || !sel.value) return;
       const fd = FIELDS.find(x => x.id === sel.dataset.tpl);
       const ta = $("f_" + fd.id);
-      if (!ta.value.trim()) { ta.value = fd.template; updateBar(); }
+      const [y, m, d] = sel.value.split("-").map(Number);
+      ta.value = buildTpl(new Date(y, m - 1, d));
+      updateBar();
       ta.focus();
-      sel.value = "";
     });
     updateBar();
   }
