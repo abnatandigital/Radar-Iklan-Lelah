@@ -72,6 +72,12 @@
   .field textarea{min-height:110px;resize:vertical}
   .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
   .field.err input,.field.err select,.field.err textarea{border-color:#d64545}
+  .gridwrap{overflow-x:auto;margin-top:8px}
+  .grid{width:100%;border-collapse:collapse;font-size:12px;min-width:520px}
+  .grid th,.grid td{border:1px solid #e5e7eb;padding:4px;text-align:center}
+  .grid th{background:#f3f4f6;font-weight:600}
+  .grid .gd{white-space:nowrap;font-weight:600;color:#374151}
+  .grid input{width:100%;min-width:70px;padding:6px;border:1px solid #d1d5db;border-radius:6px;box-sizing:border-box;font:inherit}
   .errmsg{color:#d64545;font-size:.82em;margin-top:5px;display:none}
   .field.err .errmsg{display:block}
   .progress{height:6px;background:var(--line);border-radius:99px;margin-bottom:22px;overflow:hidden}
@@ -221,7 +227,7 @@ const FIELDS = [
   { id:"target_cpa", label:"Target biaya per hasil (Rp)", type:"number", required:true, placeholder:"cth: 25000", help:"Biaya per pembelian atau per hasil yang kamu anggap sehat." },
   { id:"margin", label:"Margin kotor (%)", type:"number", required:false, placeholder:"cth: 40", help:"Persen keuntungan kotor setelah modal produk. Kosongkan kalau belum tahu." },
   { id:"metode", label:"Cara keputusan", type:"select", required:true, options:["Tren 4 sinyal vs baseline 7 hari","Batas break-even (isi margin dulu)"], help:"Tren 4 sinyal = pilihan utama. Batas break-even hanya bisa dipakai kalau margin diisi." },
-  { id:"data_7hari", label:"Data harian 7 hari dari Ads Manager", type:"textarea", required:true, placeholder:"Pilih tanggal mulai di atas, lalu isi angka tiap hari.", tplDate:true, help:"Pilih tanggal mulai, tanggal 7 hari akan terisi otomatis. Tinggal isi angkanya. Atau tempel apa adanya dari tabel Ads Manager." },
+  { id:"data_7hari", label:"Data harian 7 hari dari Ads Manager", type:"grid", required:true, help:"Pilih tanggal mulai, lalu isi angka tiap kolom dari Ads Manager untuk setiap hari." },
   { id:"catatan", label:"Perubahan minggu ini (opsional)", type:"textarea", required:false, placeholder:"cth: ganti thumbnail hari ke-5, ada promo ongkir", help:"Apa pun yang kamu ubah di iklan atau toko minggu ini." }
 ];
 
@@ -333,17 +339,34 @@ const App = (() => {
   }
 
   /* ---------- form ---------- */
-  /* template tabel 7 hari: tanggal terisi otomatis dari tanggal mulai yang dipilih */
-  const TPL_HEADER = "tanggal | frekuensi | CTR tautan | CPM | biaya per hasil | ROAS";
+  /* grid 7 hari: dropdown tanggal mulai + 7 baris x 5 kolom angka */
+  const GRID_COLS = [
+    ["frekuensi", "Frekuensi", "any"],
+    ["ctr", "CTR tautan (%)", "any"],
+    ["cpm", "CPM (Rp)", "any"],
+    ["biaya", "Biaya per hasil (Rp)", "any"],
+    ["roas", "ROAS", "any"]
+  ];
   const fmtTgl = (d) => d.toLocaleDateString("id-ID", { day:"2-digit", month:"short", year:"numeric" });
   const isoTgl = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-  function buildTpl(start){
-    const rows = [];
-    for (let i = 0; i < 7; i++){
-      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-      rows.push(`${fmtTgl(d)} |  |  |  |  | `);
-    }
-    return [TPL_HEADER, ...rows].join("\n");
+  function gridHtml(fd){
+    const head = `<tr><th>Tanggal</th>${GRID_COLS.map(c => `<th>${c[1]}</th>`).join("")}</tr>`;
+    const rows = [0,1,2,3,4,5,6].map(i =>
+      `<tr><td id="d_${i}" class="gd">—</td>` +
+      GRID_COLS.map((c,k) => `<td><input type="number" step="any" inputmode="decimal" id="g_${i}_${k}"></td>`).join("") +
+      `</tr>`).join("");
+    return `<div class="field" id="w_${fd.id}"><label>${fd.label} <span style='color:#d64545'>*</span></label>` +
+      `<p class="help">${fd.help}</p>` +
+      `<select id="f_tgl_mulai"><option value="">— pilih tanggal mulai —</option>${tplDateOptions()}</select>` +
+      `<div class="gridwrap"><table class="grid"><thead>${head}</thead><tbody>${rows}</tbody></table></div>` +
+      `<p class="errmsg">Bagian ini wajib diisi dulu ya.</p></div>`;
+  }
+  function gridFilled(){
+    if (!$("f_tgl_mulai").value) return false;
+    for (let i = 0; i < 7; i++)
+      for (let k = 0; k < GRID_COLS.length; k++)
+        if (!($("g_"+i+"_"+k).value||"").trim()) return false;
+    return true;
   }
   function tplDateOptions(){
     const today = new Date();
@@ -358,6 +381,7 @@ const App = (() => {
   function renderForm(){
     const f = $("theForm");
     f.innerHTML = FIELDS.map(fd => {
+      if (fd.type === "grid") return gridHtml(fd);
       const req = fd.required ? "<span style='color:#d64545'>*</span>" : "";
       const help = fd.help ? `<p class="help">${fd.help}</p>` : "";
       let input;
@@ -365,8 +389,7 @@ const App = (() => {
         input = `<select id="f_${fd.id}"><option value="">— pilih —</option>` +
           fd.options.map(o => `<option>${o}</option>`).join("") + `</select>`;
       } else if (fd.type === "textarea"){
-        input = `<textarea id="f_${fd.id}" placeholder="${(fd.placeholder||"").replace(/"/g,"&quot;")}"></textarea>` +
-          (fd.tplDate ? `<select class="tpl-sel" data-tpl="${fd.id}" style="margin-top:8px"><option value="">— pilih tanggal mulai —</option>${tplDateOptions()}</select>` : "");
+        input = `<textarea id="f_${fd.id}" placeholder="${(fd.placeholder||"").replace(/"/g,"&quot;")}"></textarea>`;
       } else {
         input = `<input type="${fd.type==="number"?"number":"text"}" id="f_${fd.id}" placeholder="${(fd.placeholder||"").replace(/"/g,"&quot;")}" ${fd.type==="number"?'inputmode="decimal"':""}>`;
       }
@@ -376,28 +399,43 @@ const App = (() => {
     }).join("");
     f.addEventListener("input", updateBar);
     f.addEventListener("change", (e) => {
-      const sel = e.target.closest(".tpl-sel");
-      if (!sel || !sel.value) return;
-      const fd = FIELDS.find(x => x.id === sel.dataset.tpl);
-      const ta = $("f_" + fd.id);
-      const [y, m, d] = sel.value.split("-").map(Number);
-      ta.value = buildTpl(new Date(y, m - 1, d));
+      if (e.target.id !== "f_tgl_mulai" || !e.target.value) return;
+      const [y, m, d] = e.target.value.split("-").map(Number);
+      for (let i = 0; i < 7; i++)
+        $("d_"+i).textContent = fmtTgl(new Date(y, m - 1, d + i));
       updateBar();
-      ta.focus();
     });
     updateBar();
   }
 
   function updateBar(){
     const total = FIELDS.length;
-    const filled = FIELDS.filter(fd => ($("f_"+fd.id)?.value||"").trim()).length;
+    const filled = FIELDS.filter(fd => fd.type === "grid" ? gridFilled() : ($("f_"+fd.id)?.value||"").trim()).length;
     $("bar").style.width = (total ? Math.round(filled/total*100) : 0) + "%";
   }
 
   function collect(){
     const a = {}; let ok = true;
     FIELDS.forEach(fd => {
-      const el = $("f_"+fd.id), w = $("w_"+fd.id);
+      const w = $("w_"+fd.id);
+      if (fd.type === "grid"){
+        const start = $("f_tgl_mulai").value;
+        let full = !!start;
+        const rows = [];
+        for (let i = 0; i < 7; i++){
+          const vals = GRID_COLS.map((c,k) => {
+            const v = ($("g_"+i+"_"+k).value||"").trim();
+            if (!v) full = false;
+            return v;
+          });
+          rows.push([$("d_"+i).textContent, ...vals].join(" | "));
+        }
+        if (fd.required && !full){ w.classList.add("err"); ok = false; }
+        else w.classList.remove("err");
+        a[fd.id] = ["tanggal | " + GRID_COLS.map(c => c[1]).join(" | "), ...rows].join("\n");
+        return;
+      }
+      const el = $("f_"+fd.id);
       const v = (el.value||"").trim();
       if (fd.required && !v){ w.classList.add("err"); ok = false; }
       else w.classList.remove("err");
