@@ -344,7 +344,7 @@ const App = (() => {
           fd.options.map(o => `<option>${o}</option>`).join("") + `</select>`;
       } else if (fd.type === "textarea"){
         input = `<textarea id="f_${fd.id}" placeholder="${(fd.placeholder||"").replace(/"/g,"&quot;")}"></textarea>` +
-          (fd.template ? `<button type="button" class="btn btn-ghost tpl-btn" data-tpl="${fd.id}" style="width:auto;margin-top:8px;padding:8px 14px;font-size:14px">Pakai template</button>` : "");
+          (fd.template ? `<select class="tpl-sel" data-tpl="${fd.id}" style="margin-top:8px"><option value="">— pilih template —</option><option value="kosong">Template 7 hari (kosong, isi sendiri)</option></select>` : "");
       } else {
         input = `<input type="${fd.type==="number"?"number":"text"}" id="f_${fd.id}" placeholder="${(fd.placeholder||"").replace(/"/g,"&quot;")}" ${fd.type==="number"?'inputmode="decimal"':""}>`;
       }
@@ -353,13 +353,14 @@ const App = (() => {
         <p class="errmsg">Bagian ini wajib diisi dulu ya.</p></div>`;
     }).join("");
     f.addEventListener("input", updateBar);
-    f.addEventListener("click", (e) => {
-      const btn = e.target.closest(".tpl-btn");
-      if (!btn) return;
-      const fd = FIELDS.find(x => x.id === btn.dataset.tpl);
+    f.addEventListener("change", (e) => {
+      const sel = e.target.closest(".tpl-sel");
+      if (!sel || !sel.value) return;
+      const fd = FIELDS.find(x => x.id === sel.dataset.tpl);
       const ta = $("f_" + fd.id);
       if (!ta.value.trim()) { ta.value = fd.template; updateBar(); }
       ta.focus();
+      sel.value = "";
     });
     updateBar();
   }
